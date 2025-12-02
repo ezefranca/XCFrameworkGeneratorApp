@@ -11,21 +11,38 @@ final class GeneratorViewModel: ObservableObject {
     @Published var notificationMessage: String?
     @Published var outputDirectoryURL: URL?
 
+    // Progress UI
+    @Published var currentStep: Int = 0
+    @Published var totalSteps: Int = 0
+    @Published var currentStepLabel: String = ""
+    @Published var lastLogLine: String = ""
+
     // MARK: - Dependencies
 
     private let xcodeProjService: XcodeProjService
-    private let xcFrameworkBuilder: XCFrameworkBuilder
+    private lazy var xcFrameworkBuilder: XCFrameworkBuilder = {
+        XCFrameworkBuilder(
+            xcodeProjService: xcodeProjService,
+            logHandler: { [weak self] line in
+                DispatchQueue.main.async {
+                    self?.lastLogLine = line.split(separator: "\n").last.map(String.init) ?? line
+                }
+            },
+            progressHandler: { [weak self] current, total, label in
+                DispatchQueue.main.async {
+                    self?.currentStep = current
+                    self?.totalSteps = total
+                    self?.currentStepLabel = label
+                }
+            }
+        )
+    }()
 
     // MARK: - Init
 
     /// You must inject XcodeProjService, because XCFrameworkBuilder depends on it.
     init(xcodeProjService: XcodeProjService) {
         self.xcodeProjService = xcodeProjService
-        self.xcFrameworkBuilder = XCFrameworkBuilder(xcodeProjService: xcodeProjService, logHandler:  { log in
-            print(log)
-        })
-
-        // Don't auto-fetch until a project is opened
     }
 
     // MARK: - Derived state
@@ -86,6 +103,11 @@ final class GeneratorViewModel: ObservableObject {
         isLoading = true
         notificationMessage = nil
 
+        currentStep = 0
+        totalSteps = 0
+        currentStepLabel = ""
+        lastLogLine = ""
+
         xcFrameworkBuilder.buildXCFramework(scheme: scheme.name) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -96,6 +118,7 @@ final class GeneratorViewModel: ObservableObject {
                     self.outputDirectoryURL = url
                     self.notificationMessage = "XCFramework generated successfully!"
                     NSWorkspace.shared.activateFileViewerSelecting([url])
+                    self.currentStepLabel = "Complete"
                 case .failure(let error):
                     self.notificationMessage = "Error generating XCFramework: \(error.localizedDescription)"
                 }

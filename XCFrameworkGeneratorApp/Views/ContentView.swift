@@ -84,9 +84,32 @@ struct ContentView: View {
         .frame(minWidth: 560, minHeight: 320)
         .overlay(alignment: .bottom) {
             if viewModel.isLoading {
-                ProgressView("Working…")
-                    .progressViewStyle(.circular)
-                    .padding(.vertical, 8)
+                VStack(alignment: .leading, spacing: 6) {
+                    if viewModel.totalSteps > 0 {
+                        ProgressView(value: Double(viewModel.currentStep), total: Double(viewModel.totalSteps)) {
+                            Text(viewModel.currentStepLabel)
+                                .font(.caption)
+                        }
+                        .progressViewStyle(.linear)
+                    } else {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                    }
+                    if !viewModel.lastLogLine.isEmpty {
+                        Text(viewModel.lastLogLine.trimmingCharacters(in: .whitespacesAndNewlines))
+                            .font(.caption2.monospaced())
+                            .lineLimit(2)
+                            .foregroundColor(.secondary)
+                            .transition(.opacity)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.thinMaterial)
+                .cornerRadius(8)
+                .padding(.bottom, 8)
+                .padding(.horizontal, 8)
             }
         }
         .alert(isPresented: $showAlert) {
@@ -122,10 +145,19 @@ private extension ContentView {
 
     func openProject() {
         let panel = NSOpenPanel()
-        panel.allowedFileTypes = ["xcodeproj"]
+        panel.treatsFilePackagesAsDirectories = false
         panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
         panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        if #available(macOS 12.0, *) {
+            if let type = UTType(filenameExtension: "xcodeproj") {
+                panel.allowedContentTypes = [type]
+            } else {
+                panel.allowedFileTypes = ["xcodeproj"]
+            }
+        } else {
+            panel.allowedFileTypes = ["xcodeproj"]
+        }
         panel.title = "Choose an Xcode Project"
         if panel.runModal() == .OK, let url = panel.url {
             viewModel.loadProject(from: url)
@@ -133,13 +165,12 @@ private extension ContentView {
     }
 
     func handleDrop(providers: [NSItemProvider]) -> Bool {
-        // Accept the first valid .xcodeproj file URL
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                     guard let data = item as? Data,
                           let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
-                    if url.pathExtension == "xcodeproj" {
+                    if url.pathExtension == "xcodeproj" || url.lastPathComponent.hasSuffix(".xcodeproj") {
                         DispatchQueue.main.async {
                             viewModel.loadProject(from: url)
                         }

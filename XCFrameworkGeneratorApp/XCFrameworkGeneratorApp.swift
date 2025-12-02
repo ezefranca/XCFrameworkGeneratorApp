@@ -16,5 +16,6 @@ struct XCFrameworkGeneratorApp: App {
             ContentView()
                 .environmentObject(viewModel)
         }
+        .windowResizability(.contentSize)
     }
 }
