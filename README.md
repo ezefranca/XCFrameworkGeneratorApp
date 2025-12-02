@@ -1,4 +1,6 @@
-# XCFramework Generator App
+# XCFrameworkGeneratorApp
+
+![](https://github.com/ezefranca/XCFrameworkGeneratorApp/blob/main/XCFrameworkGeneratorApp/Assets.xcassets/AppIcon.appiconset/128.png?raw=true)
 
 A very simple macOS utility that turns a iOS `.xcodeproj` into a distributable iOS `.xcframework`.
 
