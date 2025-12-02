@@ -1,6 +1,6 @@
 "action.ok" = "OK";
 "action.openProject" = "Open Project";
-"action.revealInFinder" = "Reveal in Finder";
+"action.revealInFinder" = "Reveal XCFramework in Finder";
 "action.generate" = "Generate XCFramework";
 
 "app.title" = "XCFramework Generator";

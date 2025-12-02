@@ -64,6 +64,20 @@ struct ContentView: View {
             }
 
             HStack {
+                if viewModel.logFileURL != nil {
+                    Menu {
+                        Button(action: viewModel.openLog) {
+                            Label("Open Log", systemImage: "doc.text.magnifyingglass")
+                        }
+                        Button(action: viewModel.exportLog) {
+                            Label("Export Log…", systemImage: "square.and.arrow.up")
+                        }
+                    } label: {
+                        Label("Build Log", systemImage: "doc.text")
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
+                }
+
                 if let url = viewModel.outputDirectoryURL {
                     Button(action: { NSWorkspace.shared.activateFileViewerSelecting([url]) }) {
                         Label(L10n.Actions.revealInFinder, systemImage: "eye")

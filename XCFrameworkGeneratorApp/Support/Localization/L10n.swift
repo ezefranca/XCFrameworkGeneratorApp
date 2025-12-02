@@ -21,6 +21,9 @@ enum L10n {
         static let openProject = LocalizedStringKey("action.openProject")
         static let revealInFinder = LocalizedStringKey("action.revealInFinder")
         static let generate = LocalizedStringKey("action.generate")
+        static let buildLog = LocalizedStringKey("action.log.menu")
+        static let openLog = LocalizedStringKey("action.log.open")
+        static let exportLog = LocalizedStringKey("action.log.export")
     }
 
     enum Alerts {

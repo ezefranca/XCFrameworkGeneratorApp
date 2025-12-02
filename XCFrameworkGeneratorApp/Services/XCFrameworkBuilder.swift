@@ -2,6 +2,19 @@ import Foundation
 import XcodeProj
 
 final class XCFrameworkBuilder {
+    private enum LogLevel: String {
+        case info = "INFO"
+        case warning = "WARN"
+        case error = "ERROR"
+        case debug = "DEBUG"
+    }
+
+    private static let logDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
     private let xcodeProjService: XcodeProjServicing
     private let logHandler: ((String) -> Void)
     private let progressHandler: ((Int, Int, String) -> Void)?
@@ -58,11 +71,13 @@ final class XCFrameworkBuilder {
             // STEP 1: Archive iOS
             self.progressHandler?(0, totalSteps, "Archive iOS")
             let iosArchiveArgs = ["archive", "-project", projectPath, "-scheme", scheme, "-destination", "generic/platform=iOS", "-archivePath", archiveIOS, "SKIP_INSTALL=NO", "BUILD_LIBRARY_FOR_DISTRIBUTION=YES"]
-            self.log("➡️ Archive iOS: xcodebuild \(iosArchiveArgs.joined(separator: " "))")
+            self.log("Archive iOS command: xcodebuild \(iosArchiveArgs.joined(separator: " "))")
             let iosStarted = Date()
-            switch Self.runXcodebuild(arguments: iosArchiveArgs, in: projectDirURL, output: { [weak self] line in self?.log(line) }) {
+            switch Self.runXcodebuild(arguments: iosArchiveArgs, in: projectDirURL, output: { [weak self] chunk in
+                self?.logCommandOutput(chunk, subsystem: "xcodebuild")
+            }) {
             case .success:
-                self.log("✅ Finished Archive iOS in \(String(format: "%.1f", Date().timeIntervalSince(iosStarted)))s")
+                self.log("Archive iOS completed in \(String(format: "%.1f", Date().timeIntervalSince(iosStarted))) seconds")
             case .failure(let error):
                 DispatchQueue.main.async { completion(.failure(error)) }
                 return
@@ -71,11 +86,13 @@ final class XCFrameworkBuilder {
             // STEP 2: Archive iOS Simulator
             self.progressHandler?(1, totalSteps, "Archive iOS Simulator")
             let simArchiveArgs = ["archive", "-project", projectPath, "-scheme", scheme, "-destination", "generic/platform=iOS Simulator", "-archivePath", archiveSim, "SKIP_INSTALL=NO", "BUILD_LIBRARY_FOR_DISTRIBUTION=YES"]
-            self.log("➡️ Archive iOS Simulator: xcodebuild \(simArchiveArgs.joined(separator: " "))")
+            self.log("Archive iOS Simulator command: xcodebuild \(simArchiveArgs.joined(separator: " "))")
             let simStarted = Date()
-            switch Self.runXcodebuild(arguments: simArchiveArgs, in: projectDirURL, output: { [weak self] line in self?.log(line) }) {
+            switch Self.runXcodebuild(arguments: simArchiveArgs, in: projectDirURL, output: { [weak self] chunk in
+                self?.logCommandOutput(chunk, subsystem: "xcodebuild")
+            }) {
             case .success:
-                self.log("✅ Finished Archive iOS Simulator in \(String(format: "%.1f", Date().timeIntervalSince(simStarted)))s")
+                self.log("Archive iOS Simulator completed in \(String(format: "%.1f", Date().timeIntervalSince(simStarted))) seconds")
             case .failure(let error):
                 DispatchQueue.main.async { completion(.failure(error)) }
                 return
@@ -96,17 +113,20 @@ final class XCFrameworkBuilder {
                 return
             }
 
-            self.log("🔍 Using framework paths:\n  iOS: \(frameworkIOSPath)\n  Simulator: \(frameworkSimPath)")
+            self.log("Resolved framework path for iOS: \(frameworkIOSPath)")
+            self.log("Resolved framework path for Simulator: \(frameworkSimPath)")
 
             // STEP 3: Create XCFramework
             self.progressHandler?(2, totalSteps, "Create XCFramework")
             let xcframeworkRelativePath = "\(buildRoot)/\(scheme).xcframework"
             let xcframeworkArgs = ["-create-xcframework", "-framework", frameworkIOSPath, "-framework", frameworkSimPath, "-output", xcframeworkRelativePath]
-            self.log("➡️ Create XCFramework: xcodebuild \(xcframeworkArgs.joined(separator: " "))")
+            self.log("Create XCFramework command: xcodebuild \(xcframeworkArgs.joined(separator: " "))")
             let createStarted = Date()
-            switch Self.runXcodebuild(arguments: xcframeworkArgs, in: projectDirURL, output: { [weak self] line in self?.log(line) }) {
+            switch Self.runXcodebuild(arguments: xcframeworkArgs, in: projectDirURL, output: { [weak self] chunk in
+                self?.logCommandOutput(chunk, subsystem: "xcodebuild")
+            }) {
             case .success:
-                self.log("✅ Finished Create XCFramework in \(String(format: "%.1f", Date().timeIntervalSince(createStarted)))s")
+                self.log("XCFramework creation completed in \(String(format: "%.1f", Date().timeIntervalSince(createStarted))) seconds")
                 self.progressHandler?(totalSteps, totalSteps, "Complete")
                 let xcframeworkURL = projectDirURL.appendingPathComponent(xcframeworkRelativePath, isDirectory: true)
                 DispatchQueue.main.async { completion(.success(xcframeworkURL)) }
@@ -122,26 +142,26 @@ final class XCFrameworkBuilder {
         let fm = FileManager.default
 
         guard let items = try? fm.contentsOfDirectory(atPath: frameworksDirURL.path) else {
-            log("⚠️ Could not list frameworks dir (\(frameworksDirRelative)), defaulting to scheme name")
+            log("Could not list frameworks directory (\(frameworksDirRelative)); defaulting to scheme name", level: .warning)
             return "\(frameworksDirRelative)/\(scheme).framework"
         }
 
         let frameworkItems = items.filter { $0.hasSuffix(".framework") }
         if frameworkItems.isEmpty {
-            log("⚠️ No .framework found in \(frameworksDirRelative), defaulting to scheme name")
+            log("No .framework entries found in \(frameworksDirRelative); defaulting to scheme name", level: .warning)
             return "\(frameworksDirRelative)/\(scheme).framework"
         }
 
         // If there is exactly one framework, use it.
         if frameworkItems.count == 1, let only = frameworkItems.first {
-            log("ℹ️ Found single framework '\(only)' in archive for scheme '\(scheme)'")
+            log("Found single framework '\(only)' in archive for scheme '\(scheme)'")
             return "\(frameworksDirRelative)/\(only)"
         }
 
         // Try exact match on scheme.framework
         let exactName = "\(scheme).framework"
         if frameworkItems.contains(exactName) {
-            log("ℹ️ Using exact match framework '\(exactName)' for scheme '\(scheme)'")
+            log("Using exact match framework '\(exactName)' for scheme '\(scheme)'")
             return "\(frameworksDirRelative)/\(exactName)"
         }
 
@@ -149,13 +169,13 @@ final class XCFrameworkBuilder {
         let sanitized = sanitizeSchemeNameForProduct(scheme: scheme)
         let sanitizedCandidate = "\(sanitized).framework"
         if frameworkItems.contains(sanitizedCandidate) {
-            log("ℹ️ Using sanitized match framework '\(sanitizedCandidate)' for scheme '\(scheme)' (sanitized: '\(sanitized)')")
+            log("Using sanitized match framework '\(sanitizedCandidate)' for scheme '\(scheme)' (sanitized value: '\(sanitized)')")
             return "\(frameworksDirRelative)/\(sanitizedCandidate)"
         }
 
         // Fallback: pick first alphabetically for determinism.
         let chosen = frameworkItems.sorted().first!
-        log("ℹ️ Multiple frameworks found (\(frameworkItems.joined(separator: ", "))). None matched scheme '\(scheme)'. Using '\(chosen)'.")
+        log("Multiple frameworks found (\(frameworkItems.joined(separator: ", "))); none matched scheme '\(scheme)'. Using '\(chosen)'.", level: .warning)
         return "\(frameworksDirRelative)/\(chosen)"
     }
 
@@ -170,9 +190,23 @@ final class XCFrameworkBuilder {
         return scheme
     }
 
-    private func log(_ message: String) {
-        print("[XCFrameworkBuilder] \(message)")
-        logHandler(message)
+    private func log(_ message: String, level: LogLevel = .info, subsystem: String = "XCFrameworkBuilder") {
+        let lines = message.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let timestamp = Self.logDateFormatter.string(from: Date())
+            let formatted = "\(timestamp) [\(level.rawValue)] [\(subsystem)] \(trimmed)"
+            logHandler(formatted)
+        }
+    }
+
+    private func logCommandOutput(_ chunk: String, subsystem: String) {
+        chunk.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).forEach { line in
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            log(trimmed, level: .debug, subsystem: subsystem)
+        }
     }
 
     private static func runXcodebuild(arguments: [String], in directory: URL, output: @escaping (String) -> Void) -> Result<Void, Error> {

@@ -13,17 +13,17 @@ final class GeneratorViewModel: ObservableObject {
     @Published var buildProgress: BuildProgress = .idle
     @Published var lastLogLine: String = ""
     @Published var alertContext: AlertContext?
+    @Published var logFileURL: URL?
 
     // MARK: - Dependencies
 
     private let xcodeProjService: XcodeProjServicing
+    private let logStore: BuildLogStoring
     private lazy var xcFrameworkBuilder: XCFrameworkBuilder = {
         XCFrameworkBuilder(
             xcodeProjService: xcodeProjService,
             logHandler: { [weak self] line in
-                DispatchQueue.main.async {
-                    self?.lastLogLine = line.split(separator: "\n").last.map(String.init) ?? line
-                }
+                self?.captureLog(line)
             },
             progressHandler: { [weak self] current, total, label in
                 DispatchQueue.main.async {
@@ -36,8 +36,9 @@ final class GeneratorViewModel: ObservableObject {
     // MARK: - Init
 
     /// You must inject XcodeProjService, because XCFrameworkBuilder depends on it.
-    init(xcodeProjService: XcodeProjServicing) {
+    init(xcodeProjService: XcodeProjServicing, logStore: BuildLogStoring = BuildLogStore()) {
         self.xcodeProjService = xcodeProjService
+        self.logStore = logStore
     }
 
     // MARK: - Derived state
@@ -102,6 +103,19 @@ final class GeneratorViewModel: ObservableObject {
         buildProgress = .idle
         lastLogLine = ""
 
+        do {
+            logFileURL = try logStore.startNewLog(for: scheme.name)
+        } catch {
+            isLoading = false
+            notificationMessage = "Unable to create log file."
+            alertContext = AlertContext(
+                title: "Logging Error",
+                message: error.localizedDescription,
+                dismissButtonTitle: "OK"
+            )
+            return
+        }
+
         xcFrameworkBuilder.buildXCFramework(scheme: scheme.name) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -118,6 +132,45 @@ final class GeneratorViewModel: ObservableObject {
                     self.alertContext = AlertContext(title: "Build Failed", message: self.notificationMessage ?? "", dismissButtonTitle: "OK")
                 }
             }
+        }
+    }
+
+    func openLog() {
+        guard let logURL = logFileURL else { return }
+        NSWorkspace.shared.open(logURL)
+    }
+
+    func exportLog() {
+        guard let logURL = logFileURL else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "Export Build Log"
+        panel.nameFieldStringValue = logURL.lastPathComponent
+        panel.allowedFileTypes = ["log"]
+
+        if panel.runModal() == .OK, let destinationURL = panel.url {
+            do {
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    try FileManager.default.removeItem(at: destinationURL)
+                }
+                try FileManager.default.copyItem(at: logURL, to: destinationURL)
+                NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
+            } catch {
+                alertContext = AlertContext(
+                    title: "Export Failed",
+                    message: "Unable to export log: \(error.localizedDescription)",
+                    dismissButtonTitle: "OK"
+                )
+            }
+        }
+    }
+}
+
+private extension GeneratorViewModel {
+    func captureLog(_ line: String) {
+        logStore.append(line)
+        DispatchQueue.main.async {
+            self.lastLogLine = line.split(separator: "\n").last.map(String.init) ?? line
         }
     }
 }
