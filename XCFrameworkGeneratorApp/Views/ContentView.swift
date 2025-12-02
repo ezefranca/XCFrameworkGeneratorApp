@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var viewModel: GeneratorViewModel
-    @State private var showAlert = false
     @State private var isDropping = false
 
     var body: some View {
@@ -18,16 +17,16 @@ struct ContentView: View {
                         .foregroundStyle(.primary)
                         .frame(width: 28)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.projectPath ?? "No project selected")
+                        Text(viewModel.projectPath ?? NSLocalizedString("group.project.placeholder", comment: ""))
                             .font(.system(.body, design: .rounded))
                             .foregroundColor(viewModel.projectPath == nil ? .secondary : .primary)
-                        Text("Select or drop an .xcodeproj to begin")
+                        Text(L10n.Project.subtitle)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     Spacer()
                     Button(action: openProject) {
-                        Label("Open Project", systemImage: "folder.badge.plus")
+                        Label(L10n.Actions.openProject, systemImage: "folder.badge.plus")
                             .labelStyle(.titleAndIcon)
                     }
                 }
@@ -43,7 +42,7 @@ struct ContentView: View {
                     }
                 )
             } label: {
-                Label("Project", systemImage: "shippingbox")
+                Label(L10n.Project.title, systemImage: "shippingbox")
             }
 
             GroupBox {
@@ -61,19 +60,19 @@ struct ContentView: View {
                 }
                 .padding(8)
             } label: {
-                Label("Build Configuration", systemImage: "gearshape")
+                Label(L10n.BuildConfiguration.title, systemImage: "gearshape")
             }
 
             HStack {
                 if let url = viewModel.outputDirectoryURL {
                     Button(action: { NSWorkspace.shared.activateFileViewerSelecting([url]) }) {
-                        Label("Reveal in Finder", systemImage: "eye")
+                        Label(L10n.Actions.revealInFinder, systemImage: "eye")
                     }
                     .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
                 Spacer()
                 Button(action: viewModel.generateXCFramework) {
-                    Label("Generate XCFramework", systemImage: "hammer")
+                    Label(L10n.Actions.generate, systemImage: "hammer")
                         .font(.headline)
                 }
                 .keyboardShortcut(.defaultAction)
@@ -85,10 +84,11 @@ struct ContentView: View {
         .overlay(alignment: .bottom) {
             if viewModel.isLoading {
                 VStack(alignment: .leading, spacing: 6) {
-                    if viewModel.totalSteps > 0 {
-                        ProgressView(value: Double(viewModel.currentStep), total: Double(viewModel.totalSteps)) {
-                            Text(viewModel.currentStepLabel)
-                                .font(.caption)
+                    if viewModel.buildProgress.totalSteps > 0 {
+                        ProgressView(value: Double(viewModel.buildProgress.currentStep), total: Double(viewModel.buildProgress.totalSteps)) {
+                            Text(viewModel.buildProgress.label)
+                                .font(.system(size: 8))
+                                .fontDesign(.monospaced)
                         }
                         .progressViewStyle(.linear)
                     } else {
@@ -97,14 +97,15 @@ struct ContentView: View {
                     }
                     if !viewModel.lastLogLine.isEmpty {
                         Text(viewModel.lastLogLine.trimmingCharacters(in: .whitespacesAndNewlines))
-                            .font(.caption2.monospaced())
-                            .lineLimit(2)
+                            .font(.system(size: 8))
+                            .fontDesign(.monospaced)
+                            .lineLimit(1)
                             .foregroundColor(.secondary)
                             .transition(.opacity)
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.thinMaterial)
                 .cornerRadius(8)
@@ -112,15 +113,12 @@ struct ContentView: View {
                 .padding(.horizontal, 8)
             }
         }
-        .alert(isPresented: $showAlert) {
+        .alert(item: $viewModel.alertContext) { context in
             Alert(
-                title: Text("XCFramework Generation"),
-                message: Text(viewModel.notificationMessage ?? ""),
-                dismissButton: .default(Text("OK"))
+                title: Text(context.title),
+                message: Text(context.message),
+                dismissButton: .default(Text(context.dismissButtonTitle))
             )
-        }
-        .onChange(of: viewModel.notificationMessage) { _, newValue in
-            if newValue != nil { showAlert = true }
         }
         .onDrop(of: [UTType.fileURL], isTargeted: $isDropping, perform: handleDrop(providers:))
     }
@@ -133,9 +131,9 @@ private extension ContentView {
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(.primary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("XCFramework Generator")
+                Text(L10n.App.title)
                     .font(.system(.title2, design: .rounded)).bold()
-                Text("Open your project, pick a scheme, and build a distributable XCFramework.")
+                Text(L10n.App.subtitle)
                     .font(.callout)
                     .foregroundColor(.secondary)
             }
@@ -150,15 +148,17 @@ private extension ContentView {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         if #available(macOS 12.0, *) {
-            if let type = UTType(filenameExtension: "xcodeproj") {
-                panel.allowedContentTypes = [type]
+            // Use the official UTI for Xcode projects; filenameExtension sometimes fails for packages
+            if let xcodeProjUTType = UTType("com.apple.xcode.project") {
+                panel.allowedContentTypes = [xcodeProjUTType]
             } else {
+                panel.allowedContentTypes = []
                 panel.allowedFileTypes = ["xcodeproj"]
             }
         } else {
             panel.allowedFileTypes = ["xcodeproj"]
         }
-        panel.title = "Choose an Xcode Project"
+        panel.title = NSLocalizedString("panel.projectPicker.title", comment: "")
         if panel.runModal() == .OK, let url = panel.url {
             viewModel.loadProject(from: url)
         }

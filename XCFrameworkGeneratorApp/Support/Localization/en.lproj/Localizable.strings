@@ -1,0 +1,43 @@
+"action.ok" = "OK";
+"action.openProject" = "Open Project";
+"action.revealInFinder" = "Reveal in Finder";
+"action.generate" = "Generate XCFramework";
+
+"app.title" = "XCFramework Generator";
+"app.subtitle" = "Open your project, pick a scheme, and build a distributable XCFramework.";
+
+"group.project.title" = "Project";
+"group.project.placeholder" = "No project selected";
+"group.project.subtitle" = "Select or drop an .xcodeproj to begin";
+
+"group.buildConfiguration.title" = "Build Configuration";
+"picker.scheme.title" = "Scheme";
+
+"alert.success.title" = "All Set";
+"alert.success.message" = "XCFramework generated successfully.";
+"alert.error.title" = "Something Went Wrong";
+
+"panel.projectPicker.title" = "Choose an Xcode Project";
+
+"progress.archiveIOS" = "Archiving for iOS";
+"progress.archiveSimulator" = "Archiving for iOS Simulator";
+"progress.createXCFramework" = "Creating XCFramework";
+"progress.complete" = "Complete";
+
+"error.projectNotLoaded.description" = "No project is currently loaded.";
+"error.projectNotLoaded.recovery" = "Open an .xcodeproj before attempting to build.";
+
+"error.projectLoadFailed.description" = "Failed to open project \u201C%@\u201D.";
+"error.projectLoadFailed.recovery" = "Confirm that the project exists and that you have access to it.";
+
+"error.schemeNotFound.description" = "Scheme \u201C%@\u201D was not found in this project.";
+"error.schemeNotFound.recovery" = "Share the scheme or choose another scheme before trying again.";
+
+"error.buildDirectoryCreationFailed.description" = "Unable to prepare the build directory at %@.";
+"error.buildDirectoryCreationFailed.recovery" = "Verify your write permissions for the project folder.";
+
+"error.xcodebuildFailed.description" = "xcodebuild failed while executing \u201C%@\u201D (exit code %d).";
+"error.xcodebuildFailed.recovery" = "Expand the log to review the last lines above, fix the reported issue, and try again.";
+
+"error.missingSchemeSelection.description" = "No scheme selected.";
+"error.missingSchemeSelection.recovery" = "Pick a scheme to generate an XCFramework.";

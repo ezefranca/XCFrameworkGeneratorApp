@@ -1,34 +1,53 @@
 import Foundation
 import XcodeProj
 
-class XcodeProjService {
-    private(set) var project: XcodeProj?
+protocol XcodeProjServicing {
+    var projectPath: String? { get }
+    var project: XcodeProj? { get }
+    func loadProject(at path: String) -> Bool
+    func fetchSchemes() -> [String]
+}
+
+final class XcodeProjService: XcodeProjServicing {
     private(set) var projectPath: String?
+    private(set) var project: XcodeProj?
 
     func loadProject(at path: String) -> Bool {
         do {
-            project = try XcodeProj(pathString: path)
-            projectPath = path                  
+            let proj = try XcodeProj(pathString: path)
+            self.project = proj
+            self.projectPath = path
             return true
         } catch {
-            print("Error loading project: \(error)")
+            print("[XcodeProjService] Failed to load project at \(path): \(error)")
+            self.project = nil
+            self.projectPath = nil
             return false
         }
     }
 
     func fetchSchemes() -> [String] {
-        guard let project = project else { return [] }
+        guard let projectPath else { return [] }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
+        process.arguments = ["-list", "-project", projectPath]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        do { try process.run() } catch { return [] }
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return [] }
 
-        var allSchemes: [XCScheme] = []
-
-        if let shared = project.sharedData {
-            allSchemes.append(contentsOf: shared.schemes)
+        guard let schemesMarker = output.range(of: "Schemes:") else { return [] }
+        let afterMarker = output[schemesMarker.upperBound...]
+        var result: [String] = []
+        for raw in afterMarker.split(separator: "\n") {
+            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.isEmpty { break }
+            if line.hasSuffix(":") { break }
+            result.append(line)
         }
-
-        for userData in project.userData {
-            allSchemes.append(contentsOf: userData.schemes)
-        }
-
-        return Array(Set(allSchemes.map { $0.name })).sorted()
+        return result
     }
 }

@@ -10,16 +10,13 @@ final class GeneratorViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var notificationMessage: String?
     @Published var outputDirectoryURL: URL?
-
-    // Progress UI
-    @Published var currentStep: Int = 0
-    @Published var totalSteps: Int = 0
-    @Published var currentStepLabel: String = ""
+    @Published var buildProgress: BuildProgress = .idle
     @Published var lastLogLine: String = ""
+    @Published var alertContext: AlertContext?
 
     // MARK: - Dependencies
 
-    private let xcodeProjService: XcodeProjService
+    private let xcodeProjService: XcodeProjServicing
     private lazy var xcFrameworkBuilder: XCFrameworkBuilder = {
         XCFrameworkBuilder(
             xcodeProjService: xcodeProjService,
@@ -30,9 +27,7 @@ final class GeneratorViewModel: ObservableObject {
             },
             progressHandler: { [weak self] current, total, label in
                 DispatchQueue.main.async {
-                    self?.currentStep = current
-                    self?.totalSteps = total
-                    self?.currentStepLabel = label
+                    self?.buildProgress = BuildProgress(currentStep: current, totalSteps: total, label: label)
                 }
             }
         )
@@ -41,7 +36,7 @@ final class GeneratorViewModel: ObservableObject {
     // MARK: - Init
 
     /// You must inject XcodeProjService, because XCFrameworkBuilder depends on it.
-    init(xcodeProjService: XcodeProjService) {
+    init(xcodeProjService: XcodeProjServicing) {
         self.xcodeProjService = xcodeProjService
     }
 
@@ -66,6 +61,7 @@ final class GeneratorViewModel: ObservableObject {
                 } else {
                     self.isLoading = false
                     self.notificationMessage = "Failed to open project at \(url.lastPathComponent)."
+                    self.alertContext = AlertContext(title: "Error", message: self.notificationMessage ?? "", dismissButtonTitle: "OK")
                 }
             }
         }
@@ -97,15 +93,13 @@ final class GeneratorViewModel: ObservableObject {
     func generateXCFramework() {
         guard let scheme = selectedScheme else {
             notificationMessage = "Please select a scheme."
+            alertContext = AlertContext(title: "Warning", message: notificationMessage ?? "", dismissButtonTitle: "OK")
             return
         }
 
         isLoading = true
         notificationMessage = nil
-
-        currentStep = 0
-        totalSteps = 0
-        currentStepLabel = ""
+        buildProgress = .idle
         lastLogLine = ""
 
         xcFrameworkBuilder.buildXCFramework(scheme: scheme.name) { [weak self] result in
@@ -117,10 +111,11 @@ final class GeneratorViewModel: ObservableObject {
                 case .success(let url):
                     self.outputDirectoryURL = url
                     self.notificationMessage = "XCFramework generated successfully!"
+                    self.buildProgress = BuildProgress(currentStep: self.buildProgress.totalSteps, totalSteps: self.buildProgress.totalSteps, label: "Complete")
                     NSWorkspace.shared.activateFileViewerSelecting([url])
-                    self.currentStepLabel = "Complete"
                 case .failure(let error):
                     self.notificationMessage = "Error generating XCFramework: \(error.localizedDescription)"
+                    self.alertContext = AlertContext(title: "Build Failed", message: self.notificationMessage ?? "", dismissButtonTitle: "OK")
                 }
             }
         }
