@@ -1,6 +1,6 @@
 # XCFramework Generator App
 
-A very simple macOS utility that turns a `.xcodeproj` into a distributable `.xcframework`.
+A very simple macOS utility that turns a iOS `.xcodeproj` into a distributable iOS `.xcframework`.
 
 ![](/app.png)
 
