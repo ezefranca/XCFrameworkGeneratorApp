@@ -67,13 +67,13 @@ struct ContentView: View {
                 if viewModel.logFileURL != nil {
                     Menu {
                         Button(action: viewModel.openLog) {
-                            Label("Open Log", systemImage: "doc.text.magnifyingglass")
+                            Label(L10n.Actions.openLog, systemImage: "doc.text.magnifyingglass")
                         }
                         Button(action: viewModel.exportLog) {
-                            Label("Export Log…", systemImage: "square.and.arrow.up")
+                            Label(L10n.Actions.exportLog, systemImage: "square.and.arrow.up")
                         }
                     } label: {
-                        Label("Build Log", systemImage: "doc.text")
+                        Label(L10n.Actions.buildLog, systemImage: "doc.text")
                     }
                     .transition(.opacity.combined(with: .move(edge: .leading)))
                 }

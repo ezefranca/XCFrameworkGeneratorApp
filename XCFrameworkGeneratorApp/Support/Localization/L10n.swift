@@ -37,4 +37,15 @@ enum L10n {
         static let createXCFramework = LocalizedStringKey("progress.createXCFramework")
         static let complete = LocalizedStringKey("progress.complete")
     }
+
+    enum MenuBar {
+        static let title = LocalizedStringKey("menubar.title")
+    }
+
+    enum Settings {
+        static let generalSectionTitle = LocalizedStringKey("settings.section.general")
+        static let presentationTitle = LocalizedStringKey("settings.mode.title")
+        static let presentationDescription = LocalizedStringKey("settings.mode.description")
+        static let menuBarUnavailable = LocalizedStringKey("settings.mode.menuBar.unavailable")
+    }
 }

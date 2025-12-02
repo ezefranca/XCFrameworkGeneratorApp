@@ -2,6 +2,9 @@
 "action.openProject" = "Open Project";
 "action.revealInFinder" = "Reveal XCFramework in Finder";
 "action.generate" = "Generate XCFramework";
+"action.log.menu" = "Build Log";
+"action.log.open" = "Open Log";
+"action.log.export" = "Export Log...";
 
 "app.title" = "XCFramework Generator";
 "app.subtitle" = "Open your project, pick a scheme, and build a distributable XCFramework.";
@@ -23,6 +26,17 @@
 "progress.archiveSimulator" = "Archiving for iOS Simulator";
 "progress.createXCFramework" = "Creating XCFramework";
 "progress.complete" = "Complete";
+
+"menubar.title" = "XCFramework Generator";
+
+"settings.section.general" = "General";
+"settings.mode.title" = "Presentation";
+"settings.mode.description" = "Choose how the app should appear.";
+"settings.mode.window" = "Window";
+"settings.mode.window.detail" = "Use a dedicated, resizable macOS window that can sit alongside your other tools.";
+"settings.mode.menuBar" = "Menu Bar";
+"settings.mode.menuBar.detail" = "Keep the app tucked into the menu bar as a compact popover when you only need it occasionally.";
+"settings.mode.menuBar.unavailable" = "The menu bar option requires macOS 13 or later.";
 
 "error.projectNotLoaded.description" = "No project is currently loaded.";
 "error.projectNotLoaded.recovery" = "Open an .xcodeproj before attempting to build.";
